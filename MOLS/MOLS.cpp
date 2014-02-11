@@ -22,7 +22,144 @@ string inttostr(int number)
 	ss << number;//add number to the stream
 	return ss.str();//return a string with the contents of the stream
 }
+localsearch_history::localsearch_history(){
+	current_index=0;
+	max_radius=1;
+	number_of_iterations=0;
+	number_of_points_processed=0;
+}
 
+localsearch_history::localsearch_history(int radius){
+	current_index=0;
+	max_radius=radius;
+	number_of_iterations=0;
+	number_of_points_processed=0;
+}
+
+void localsearch_history::add_area(MOLS H, int best_known_value){
+	localsearch_area a(H.markings,H,max_radius,best_known_value);
+	areas.push_back(a);
+	current_index=areas.size()-1;
+	number_of_iterations++;
+}
+bool localsearch_history::getnextpoint(vector<int> &point, MOLS &H){
+	vector<int> r;
+	MOLS a;
+	bool b=areas[current_index].get_next_point(r,a);
+	while ((b==false)&&(current_index>0)){
+		current_index--;
+		b=areas[current_index].get_next_point(r,a);
+	}
+	point.swap(r);
+	number_of_points_processed++;
+	return b;
+}
+
+localsearch_area::localsearch_area(vector<int> markings, int radius){
+	markings_this.swap(markings);
+	area_radius=radius;
+	current_index=0;
+	generate_area(radius);
+}
+localsearch_area::localsearch_area(vector<int> markings, MOLS H, int radius, int best_known_value){
+	BKV=best_known_value;
+	MOLS_this=H;
+	markings_this.swap(markings);
+	area_radius=radius;
+	current_index=0;
+	generate_area(radius);
+}
+vector<vector<int>> localsearch_area::generate_area_1(int sign, vector<int>markings){
+	vector<vector<int>>res;
+	if (sign==1){
+		for(int i=0;i<markings.size();i++){
+			if (markings[i]==0){
+				vector<int> tmp_markings(markings);
+					tmp_markings[i]=1;
+					res.push_back(tmp_markings);
+				}
+			}
+		}else {
+			for(int i=0;i<markings_this.size();i++){
+				if (markings[i]==1){
+					vector<int> tmp_markings(markings);
+					tmp_markings[i]=0;
+					res.push_back(tmp_markings);
+				}
+			}
+		}	
+	return res;
+}
+
+vector<vector<int>> localsearch_area::generate_area_rad(int radius, vector<int> markings){
+	if (radius==0) exit;
+	
+	int radius_value=abs(radius);
+	int radius_sign=radius/radius_value;
+	vector<vector<int>> res=generate_area_1(radius_sign,markings);
+	if (radius_value==1) return res;
+	vector<vector<int>> temp_res;
+	
+	for (int r=2;r<=radius_value;r++){
+		for (int i=0;i<res.size();i++){
+			vector<vector<int>> t=generate_area_1(radius_sign,res[i]);
+			for (int j=0;j<t.size();j++){
+				vector<int> p(t[j]);
+				temp_res.push_back(p);				
+			}
+			t.clear();
+		}
+		res.clear();
+		res.swap(temp_res);
+	}
+	return res;
+}
+void localsearch_area::generate_area(int radius){
+	area_this.clear();
+	area_radius=radius;
+	int radius_value=abs(radius);
+	int radius_sign=radius/radius_value;
+	for (int r=1;r<=radius_value;r++){
+		vector<vector<int>>temp_radius=generate_area_rad(r*radius_sign, markings_this);
+		cout<<endl<<"area of radius "<<r<<" size before cleanup "<<temp_radius.size();
+		cleanup(temp_radius);
+		cout<<" after cleanup "<<temp_radius.size()<<endl;
+		for (int i=0;i<temp_radius.size();i++){
+			vector<int> t(temp_radius[i]);
+			area_this.push_back(t);
+		}
+	}
+	
+}
+string localsearch_area::totext (vector<int> a){
+	string res;
+	for (int i=0;i<a.size();i++){
+		if (a[i]==0){res+='0';}else{res+='1';}
+	}
+	return res;
+}
+void localsearch_area::cleanup(vector<vector<int>>&a){
+	for (int i=0;i<a.size();i++){
+		for (int j=i+1;j<a.size();j++){
+			if (a[i]==a[j]){a.erase(a.begin()+j);}
+		}
+	}
+}
+void localsearch_area::zip (){
+	area_this.clear();	
+}
+void localsearch_area::unzip (){
+	generate_area(area_radius);
+}
+
+bool localsearch_area::get_next_point(vector<int> & point, MOLS & H){
+	if (area_this.size()==0){unzip();}
+	if (current_index==area_this.size()){return false;}
+	vector<int> r(area_this[current_index]);
+	H=MOLS_this;
+	point.swap(r);
+	return true;
+}
 
 LS::LS(int * b, int n){
 	lselems = b;
@@ -1435,11 +1572,12 @@ void localsearch_minisat::initialize(int n, int r, int start_from, string path){
 	current_path = path;
 	order_of_squares = n;
 	number_of_squares = r;
-	maximum_radius = 4;
+	maximum_radius = 2;
 	processed_points_number = 0;
 	int cur_rad = 1;
 	iteration_number = 0;
 	number_of_processed_point = 0;
+	points_history.initialize(maximum_radius);
 	cnfinput = init.LSSetinc_markings_experimental(n, r);
 	Base = init.convert_to_problem_base();
 	number_of_vars_cnf = init.nVars;
@@ -1473,6 +1611,7 @@ void localsearch_minisat::initialize(int n, int r, int start_from, string path){
 	int init_num;
 	if (extract_solution(temp.GetSatSolution(), n, r, init_num, init_mols) == true){
 		cout << "Initialization MOLS found" << endl;
+		points_history.add_area(init_mols,init_num);
 	}
 	else { exit; }
 
@@ -1484,10 +1623,11 @@ void localsearch_minisat::initialize(int n, int r, int start_from, string path){
 	current_record = init_num;
 	initial_point = init_mols;
 	record_point = init_mols;
-	generate_area(init_mols.markings, -cur_rad);
-	string area_file = path + "\\area_" + inttostr(iteration_number) + ".area";
-	print_area(current_area, area_file);
-	get_next_point();
+	//generate_area(init_mols.markings, -cur_rad);
+	//string area_file = path + "\\area_" + inttostr(iteration_number) + ".area";
+	//print_area(current_area, area_file);
+	//get_next_point();
+	bool beta=points_history.getnextpoint(current_markings,record_point);
 }
 
 
@@ -1544,7 +1684,7 @@ void localsearch_minisat::search(int n, int r, int start_from, int end_value, st
 				generate_area(record_point.markings, -current_radius);
 				string area_file = path + "\\area_" + inttostr(iteration_number) + ".area";
 				print_area(current_area, area_file);
-				get_next_point();
+				bool beta=points_history.getnextpoint(current_markings,record_point);
 			}
 		}
 		else{
@@ -1556,6 +1696,7 @@ void localsearch_minisat::search(int n, int r, int start_from, int end_value, st
 			printSolving();
 			MOLS cur_mols;
 			extract_solution(temp.GetSatSolution(), n, r, cur_num, cur_mols);
+			points_history.add_area(cur_mols,cur_num);
 			cout << "extract_solution done" << endl;
 			log("New record MOLS found", cur_time_1 - cur_time_0, logfile_name);
 			log("Squares", cur_mols, logfile_name);
@@ -1565,7 +1706,7 @@ void localsearch_minisat::search(int n, int r, int start_from, int end_value, st
 			record_point = cur_mols;
 			current_radius = 1;
 			generate_area(cur_mols.markings, -current_radius);
-			get_next_point();
+			bool beta=points_history.getnextpoint(current_markings,record_point);
 		}
 	}
 }

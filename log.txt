@@ -1,0 +1,4 @@
+Initialization MOLS found 38.889 seconds. 
+
+Initialization MOLS found 34.212 seconds. 
+

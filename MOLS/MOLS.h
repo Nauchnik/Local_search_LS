@@ -11,6 +11,7 @@
 #include "minisat/utils/System.h";
 
 using namespace std;
+
 class LS{
 private:
 
@@ -108,6 +109,50 @@ public:
 	void print(const char * fn);
 };
 
+class localsearch_area{
+private:
+	vector<int> markings_this;
+	MOLS MOLS_this;
+	vector<vector<int>> area_this;
+	int current_index;
+	int BKV;
+	int area_radius;
+	void cleanup(vector<vector<int>>&a);
+	string totext(vector<int> a);
+	vector<vector<int>> generate_area_rad(int radius, vector<int> markings);
+	vector<vector<int>> generate_area_1(int sign, vector<int> markings);
+	void generate_area(int radius);
+public:
+	localsearch_area (vector<int> markings, int radius);
+	localsearch_area (vector<int> markings, MOLS H, int radius, int best_known_value);
+	void zip ();
+	vector<int> markings (){return markings_this;}
+	MOLS getMOLS(){return MOLS_this;}
+	int getBKV () {return BKV;}
+	bool get_next_point(vector<int> & point, MOLS &H);
+	void unzip();
+};
+
+class localsearch_history{
+private:
+	vector<localsearch_area> areas;
+	int current_index;
+	int max_radius;
+	int number_of_iterations;
+	int number_of_points_processed;
+public:
+	localsearch_history();
+	localsearch_history(int radius);
+	void initialize(int radius){
+		max_radius=radius;
+		current_index=0;
+		number_of_iterations=0;
+		number_of_points_processed=0;
+		areas.clear();
+	}
+	void add_area(MOLS H, int best_known_value);
+	bool getnextpoint(vector<int> &point, MOLS &H);
+};
 class localsearch{
 private:
 	
@@ -145,6 +190,7 @@ public:
 
 class localsearch_minisat{
 private:
+	localsearch_history points_history;
 	unsigned unsat_count;
 	unsigned sat_count;
 	double min_unsat_time; 

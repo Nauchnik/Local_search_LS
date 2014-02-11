@@ -33,6 +33,7 @@ using namespace Minisat;
 
 int main(int argc, char** argv)
 {
+	
 	localsearch_minisat a;
 	//a.search(10, 3, 50, 90, "D:\\LSTests\\Local_search\\ls10_3");
 	string path = ".";
