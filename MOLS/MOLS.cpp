@@ -156,6 +156,7 @@ bool localsearch_area::get_next_point(vector<int> & point, MOLS & H){
 	if (area_this.size()==0){unzip();}
 	if (current_index==area_this.size()){return false;}
 	vector<int> r(area_this[current_index]);
+	current_index++;
 	H=MOLS_this;
 	point.swap(r);
 	return true;
@@ -476,8 +477,15 @@ int MOLS::printincompleteassumption(const char * fn){
 	return count;
 }
 vector<int> MOLS::incompleteassumption(vector<int> current_markings){
-	//using current_markings returns values of existing square
+	// returns values of markings to be put to CNF
 	vector<int> result;
+	for (int i = 0; i<current_markings.size(); i++){
+		if (current_markings[i] == 1){
+			int temp_var = 3 * order*order*order + i + 1;
+			result.push_back(temp_var);
+		}
+	}	
+	//using current_markings returns values of existing square
 	for (int i = 0; i<order; i++){
 		for (int j = 0; j<order; j++){
 			if ((current_markings[i*order + j] == 1) && (markings[i*order + j] == 1)){
@@ -1071,7 +1079,7 @@ void localsearch::initialize(int n, int r, int start_from, string path){
 	current_path = path;
 	order_of_squares = n;
 	number_of_squares = r;
-	maximum_radius = 4;
+	maximum_radius = 2;
 	processed_points_number = 0;
 	int cur_rad = 1;
 	iteration_number = 0;
@@ -1572,7 +1580,7 @@ void localsearch_minisat::initialize(int n, int r, int start_from, string path){
 	current_path = path;
 	order_of_squares = n;
 	number_of_squares = r;
-	maximum_radius = 2;
+	maximum_radius = -2;
 	processed_points_number = 0;
 	int cur_rad = 1;
 	iteration_number = 0;
@@ -1678,14 +1686,8 @@ void localsearch_minisat::search(int n, int r, int start_from, int end_value, st
 			med_unsat_time = total_unsat_time / unsat_count;
 			printSolving();
 			log("UNSAT iteration " + inttostr(iteration_number) + " point " + inttostr(processed_points_number), cur_time_1 - cur_time_0, logfile_name);
-			if (get_next_point() == false){
-				current_radius++;
-				log("Generating wider area with radius " + inttostr(current_radius), logfile_name);
-				generate_area(record_point.markings, -current_radius);
-				string area_file = path + "\\area_" + inttostr(iteration_number) + ".area";
-				print_area(current_area, area_file);
-				bool beta=points_history.getnextpoint(current_markings,record_point);
-			}
+			bool beta=points_history.getnextpoint(current_markings,record_point);
+			if (beta==false){break;}
 		}
 		else{
 			sat_count++;
