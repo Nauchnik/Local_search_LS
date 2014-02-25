@@ -45,7 +45,7 @@ void localsearch_history::add_area(MOLS H, int best_known_value){
 bool localsearch_history::getnextpoint(vector<int> &point, MOLS &H){
 	vector<int> r;
 	MOLS a;
-	bool b=areas[current_index].get_next_point(r,a);
+  	bool b=areas[current_index].get_next_point(r,a);
 	while ((b==false)&&(current_index>0)){
 		current_index--;
 		b=areas[current_index].get_next_point(r,a);
@@ -1544,7 +1544,8 @@ bool Minisat_solver_wrapper::solve_this( Minisat::Problem &Base, Minisat::Proble
 			cout << endl;
 		}
 		cout << "UNSATISFIABLE" << endl;
-		exit(20);
+	//	exit(20);
+		//change from 25_02
 	}
 
 	if ( solve_count++ == 0 ) {
@@ -1667,7 +1668,13 @@ void localsearch_minisat::search(int n, int r, int start_from, int end_value, st
 		
 		current_order = init.convert_to_problem_vector(init.order_appendix(cnfinput, current_record + 1));
 		current_assumptions = init.convert_to_problem_vector(record_point.incompleteassumption(current_markings));
-
+		
+		//high verbosity, debug only
+	//	init.Print(current_cnf.c_str());
+	//	init.Append_order(current_cnf.c_str(), cnfinput, current_record + 1);
+	//	init.Append_assumptions(current_cnf.c_str(), record_point.incompleteassumption(current_markings));
+		
+		//~high verbosity, debug only
 
 		//record_point.print_incomplete_assumption_tofile(current_markings, current_assumptions_file);
 		Minisat_solver_wrapper temp;
@@ -1682,7 +1689,7 @@ void localsearch_minisat::search(int n, int r, int start_from, int end_value, st
 			unsat_count++;
 			total_unsat_time += solving_time;
 			min_unsat_time = ( solving_time < min_unsat_time ) ? solving_time : min_unsat_time;
-			max_unsat_time = ( solving_time > max_unsat_time ) ? solving_time : max_unsat_time;
+			max_unsat_time = ( solving_time > max_unsat_time ) ? solving_time:  max_unsat_time;
 			med_unsat_time = total_unsat_time / unsat_count;
 			printSolving();
 			log("UNSAT iteration " + inttostr(iteration_number) + " point " + inttostr(processed_points_number), cur_time_1 - cur_time_0, logfile_name);
